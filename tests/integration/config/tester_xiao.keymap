@@ -1,0 +1,4 @@
+#include <behaviors.dtsi>
+#include <behaviors/rgbled_widget.dtsi>
+#include <dt-bindings/zmk/keys.h>
+/ { keymap { compatible = "zmk,keymap"; default_layer { bindings = <&ind_bat &ind_con &ind_lyr &kp A &kp B &kp C &kp D &kp E &kp F &kp G &kp H>; }; }; };

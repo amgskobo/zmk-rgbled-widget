@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+cmake_minimum_required(VERSION 3.20.0)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(rgb_widget_lifecycle)
+if(RGB_WIDGET_LAYER_PULSE_TEST)
+  target_compile_definitions(app PRIVATE RGB_WIDGET_LAYER_PULSE_TEST=1)
+endif()
+if(RGB_WIDGET_IGNORE_AML_TEST)
+  target_compile_definitions(app PRIVATE RGB_WIDGET_IGNORE_AML_TEST=1)
+endif()
+target_sources(app PRIVATE main.c behavior_call.c)
+target_include_directories(app PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include ../../include)
+target_compile_options(app PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/boundaries.h)

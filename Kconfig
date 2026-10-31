@@ -22,6 +22,10 @@ config RGBLED_WIDGET_INTERVAL_MS
 
 # Battery level settings
 
+config RGBLED_WIDGET_SHOW_BATTERY_STATUS
+    bool "Show battery status indications, including boot and critical battery"
+    default y
+
 choice RGBLED_WIDGET_BATTERY_SHOW
     prompt "Which battery levels to indicate, non-defaults only work for split centrals"
 
@@ -82,6 +86,10 @@ config RGBLED_WIDGET_BATTERY_COLOR_MISSING
     default $(COLOR_MAGENTA)
 
 # Connectivity indicator settings
+config RGBLED_WIDGET_SHOW_CONNECTION_STATUS
+    bool "Show connection status indications"
+    default y
+
 config RGBLED_WIDGET_CONN_BLINK_MS
     int "Duration of BLE connection status blink in ms"
     default RGBLED_WIDGET_OUTPUT_BLINK_MS
@@ -117,9 +125,29 @@ config RGBLED_WIDGET_CONN_COLOR_USB
 config RGBLED_WIDGET_SHOW_LAYER_CHANGE
     bool "Indicate highest active layer on each layer change with a sequence of blinks"
 
+config RGBLED_WIDGET_LAYER_SINGLE_PULSE
+    bool "Show one layer-colored pulse instead of counting the layer index"
+    depends on RGBLED_WIDGET_SHOW_LAYER_CHANGE && !RGBLED_WIDGET_SHOW_LAYER_COLORS
+    default n
+    help
+      Show the selected layer's configured color once, then turn it off.
+      Layer 0 is included. Queued pulses for an obsolete layer are discarded.
+      This mode does not light up at boot or on wake without a layer change.
+
 config RGBLED_WIDGET_LAYER_BLINK_MS
     int "Blink and wait duration for layer indicator"
     default 100
+
+config RGBLED_WIDGET_LAYER_IGNORE_MASK
+    hex "Stable layer IDs excluded from the single-pulse indicator"
+    depends on RGBLED_WIDGET_LAYER_SINGLE_PULSE
+    range 0x0 0xffffffff
+    default 0x0
+    help
+      Bit N excludes stable layer ID N from the single-pulse display.
+      Select the highest active non-excluded layer, so entering or leaving an
+      automatic mouse layer alone causes no pulse. Normal layer changes below
+      an excluded layer still appear. An empty eligible set produces no pulse.
 
 config RGBLED_WIDGET_LAYER_COLOR
     int "Color to use for layer indicator"
@@ -301,3 +329,11 @@ DT_COMPAT_ZMK_BEHAVIOR_RGBLED_WIDGET := zmk,behavior-rgbled-widget
 config ZMK_BEHAVIOR_RGBLED_WIDGET
     bool
     default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_RGBLED_WIDGET))
+
+config ZMK_RGBLED_WIDGET_LOG_LEVEL
+    int "zmk-rgbled-widget log level (0 off, 1 error, 2 warning, 3 info, 4 debug)"
+    range 0 4
+    default 3
+    help
+      Logs contain operational state and numeric diagnostics, never input
+      contents, user labels, peer addresses or authentication material.

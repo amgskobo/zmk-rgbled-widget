@@ -1,0 +1,5 @@
+/* SPDX-License-Identifier: MIT */
+/* A node with GPIO children is insufficient without a gpio-leds parent. */
+&test_rgb_leds {
+    /delete-property/ compatible;
+};

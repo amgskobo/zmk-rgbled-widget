@@ -8,7 +8,10 @@
 
 #include <zmk_rgbled_widget/widget.h>
 
-LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+#ifndef CONFIG_ZMK_RGBLED_WIDGET_LOG_LEVEL
+#define CONFIG_ZMK_RGBLED_WIDGET_LOG_LEVEL 3
+#endif
+LOG_MODULE_REGISTER(zmk_rgbled_widget_behavior_rgbled_widget, CONFIG_ZMK_RGBLED_WIDGET_LOG_LEVEL);
 
 struct behavior_rgb_wdg_config {
     bool indicate_battery;

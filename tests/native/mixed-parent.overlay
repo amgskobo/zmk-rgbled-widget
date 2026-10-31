@@ -1,0 +1,5 @@
+/* SPDX-License-Identifier: MIT */
+/* The blue alias belongs to the board's unrelated GPIO LED device. */
+/ {
+    aliases { led-blue = &led0; };
+};

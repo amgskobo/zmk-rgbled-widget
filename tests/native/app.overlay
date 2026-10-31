@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: MIT */
+/ {
+    /* The board's original gpio-leds device remains unrelated and enabled. */
+    aliases { led-red = &test_red; led-green = &test_green; led-blue = &test_blue; };
+    test_rgb_leds: rgb_leds {
+        compatible = "gpio-leds";
+        test_red: red { gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>; };
+        test_green: green { gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>; };
+        test_blue: blue { gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>; };
+    };
+};
