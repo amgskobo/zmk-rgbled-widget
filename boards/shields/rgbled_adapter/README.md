@@ -5,10 +5,10 @@ RGB LED widget for certain boards, and automatically enables that feature.
 
 Boards currently supported are:
 
-- Xiao BLE (`seeeduino_xiao_ble`)
+- Xiao BLE (`xiao_ble//zmk`)
 - nRF52840 M.2 Module (`nrf52840_m2`)
 - nRF52840 MDK USB Dongle (`nrf52840_mdk_usb_dongle`)
-- Xiao RP2040 (`seeeduino_xiao_rp2040`[^1])
+- Xiao RP2040 (`xiao_rp2040//zmk`[^1])
 
 Please see the [module README](../../../README.md) on general usage instructions, or
 to add support to a custom board/shield.

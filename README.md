@@ -1,5 +1,13 @@
 # LED indicators using an RGB LED
 
+## Reviewed fork
+
+This fork's reviewed source is on `codex/rgbled-widget-review` in
+[`amgskobo/zmk-rgbled-widget`](https://github.com/amgskobo/zmk-rgbled-widget/tree/codex/rgbled-widget-review).
+Select that repository URL and revision in the module's west project entry.
+Keep the module's documented imports enabled where required. The original
+upstream installation examples below describe the upstream repository.
+
 > [!IMPORTANT]
 > This module uses a versioning scheme that is compatible with ZMK versions.
 > As a general rule, the `main` branch is targeting compatibility with ZMK's `main`.
@@ -20,12 +28,16 @@ It is used to indicate battery level and BLE connection status in a minimalist w
 
 ### Battery status
 
+- Set `CONFIG_RGBLED_WIDGET_SHOW_BATTERY_STATUS=n` to suppress boot, critical
+  battery and on-demand battery indications. The default is `y`.
 - Blink 🟢/🟡/🔴 on boot depending on battery level, with thresholds [set](#configuration-details) by `CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_HIGH` and `CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_LOW`
   - See [options](#battery-levels-for-splits) for showing battery levels for splits
 - Blink 🔴 on every battery level change if below critical battery level (`CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_CRITICAL`)
 
 ### Connection status
 
+- Set `CONFIG_RGBLED_WIDGET_SHOW_CONNECTION_STATUS=n` to suppress boot,
+  endpoint/profile changes and on-demand connection indications. The default is `y`.
 - Blink 🔵 for connected, 🟡 for open (advertising), 🔴 for disconnected profiles on boot after the battery blink, and following every BT profile switch (only on central side for splits)
   - Enable `CONFIG_RGBLED_WIDGET_CONN_SHOW_USB` to blink cyan if USB currently has priority over BLE, instead of above
 - Blink 🔵 for connected, 🔴 for disconnected on peripheral side of splits
@@ -39,6 +51,26 @@ You can pick one of the following methods (off by default) to indicate the highe
 - Enable `CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS` to assign each layer its own color, which will remain on while that layer is the highest active layer
 
 These layer indicators will only be active on the central part of a split keyboard, since peripheral parts aren't aware of the layer information.
+
+For one brief layer-colored indication at each change, enable
+`CONFIG_RGBLED_WIDGET_SHOW_LAYER_CHANGE=y` and
+`CONFIG_RGBLED_WIDGET_LAYER_SINGLE_PULSE=y`, with
+`CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS=n`. This uses the per-layer color table,
+including layer0, and turns off after `CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS`.
+Both activation and release are considered when the highest layer changes;
+events that leave it unchanged do not schedule another pulse. Debouncing keeps
+the latest layer, and queued pulses for an obsolete layer are discarded.
+Sleep cancels old indications; boot and wake alone do not produce a layer pulse.
+`CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK` excludes stable layer IDs from this
+single-pulse selection. For example, `0x200` ignores automatic mouse layer ID9.
+Entering or leaving that layer alone is silent; a manual layer below it still
+appears, and a queued indication remains valid when only the ignored layer
+changes. Reordered layers are mapped from their display index to stable ID
+before testing the mask. If no eligible layer is active, no pulse is queued.
+The pulse wait can be interrupted by a newer layer or sleep. Only the latest
+queued layer request is eligible, and each new indication starts its own duration.
+Disable both status options above for layer-change-only output. A zero status
+duration is not an off switch: generic zero-duration items set a steady color.
 
 > [!TIP]
 > Also see [below](#showing-status-on-demand) for keymap behaviors you can use to show the battery and connection status on demand.
@@ -102,6 +134,17 @@ This module also defines keymap [behaviors](https://zmk.dev/docs/keymaps/behavio
 
 When you invoke the behavior by pressing the corresponding key (or combo), it will trigger the corresponding indicator on the LED.
 This will happen on all keyboard parts for split keyboards, so make sure to flash firmware to all parts after enabling.
+
+Battery requests enter the bounded LED queue immediately. The LED thread performs
+the existing battery retries; the key-processing caller does not wait for them.
+As with other indications, a full queue drops a new request. Boot initialization
+keeps its separate battery-first sequence. Connectivity work is initialized
+statically and accepts requests before the LED thread starts.
+
+With persistent layer colors enabled, sleep turns the output off and invalidates
+older queued or running indications. Layer changes while asleep update the saved
+target; ACTIVE or IDLE restores that latest color. No old blink or battery retry
+may replace it after wake. Indication delays never hold the output-state mutex.
 
 > [!NOTE]
 > The behaviors can be used even when you use split keyboards with different controllers that don't all support the widget.
@@ -231,6 +274,10 @@ CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_CRITICAL=10
 
 To be able to use this widget, you need three LEDs controlled by GPIOs (_not_ smart LEDs), ideally red, green and blue colors.
 Once you have these LED definitions in your board/shield, simply set the appropriate `aliases` to the RGB LED node labels.
+All three aliases must share one `gpio-leds` parent. The widget selects that
+parent directly, so additional LED devices on the board remain independent.
+Child indices use the LED API's full uint32 width. Mixed parents or a parent
+without `gpio-leds` compatibility are rejected at compilation.
 
 As an example, here is a definition for three LEDs connected to VCC and separate GPIOs for a nRF52840 controller:
 

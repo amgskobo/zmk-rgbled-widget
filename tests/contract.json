@@ -1,0 +1,30 @@
+{
+  "owner": "zmk-rgbled-widget",
+  "entry": "bash tests/run-host-docker.sh",
+  "families": {
+    "gpio_and_ordered_blinks": "runtime/widget_harness.c:test_gpio_and_worker; exact edge values/order/timestamps and unchanged separation intervals",
+    "endpoint_and_bounded_queue": "test_connectivity_and_queue; USB/BLE/preference/profile/role table, coalescing and saturation",
+    "battery": "test_battery; exact boundaries, local/peer retries, lookup failure and recovery; test_caller_and_sleep and review-caller/caller.c retain nonwaiting behavior",
+    "layers_and_boot": "test_layers_and_boot; layer table, debounce, persistent saturation, startup sequence and state",
+    "behavior": "test_behavior; independent battery/connectivity/layer requests, release and role gates",
+    "sleep_and_lifecycle": "test_caller_and_sleep; queued/running/retry sleep, wake, latest target, generation invalidation and queue saturation",
+    "real_kernel": "native/main.c and behavior_call.c include the unchanged production sources; early work submission, actual delayed blink/retry sleeps, queue/mutex and GPIO-emulator output; three runs of one binary",
+    "alias_device_and_indices": "native/main.c requires the RGB alias parent instead of an unrelated enabled gpio-leds device and preserves the unrelated output; run.py checks exact mixed/wrong-parent compiler diagnostics and --wide-indices repeats the lifecycle with children256..258",
+    "supported_core_interfaces": "integration/run.py; stock/DYA with BLE+USB and USB-only, enabled sources/configuration and actual UF2",
+    "quiet_layer_pulse": "runtime/widget_harness.c:test_quiet_layer_pulse; quiet boot/status, exact timed color/off, activation/release, unchanged layer, stale queue and sleep; native/run.py --layer-pulse repeats the real-kernel variant three times",
+    "ignored_auto_layer": "Masked host variants retain100 silent entry/exit pairs, manual selection below AML, base return, queued-output validity, empty eligible set and stable-ID reordering; compiled bypass control fails3/3; native --layer-pulse --ignore-aml and both-core masked API fixture"
+  },
+  "gaps": [
+    "ZMK events and battery/endpoint APIs are controlled in host/native fixtures.",
+    "Named interleavings do not exhaust arbitrary concurrent schedules or LED-driver failures.",
+    "Physical GPIO/USB/BLE/split/power/reset acceptance requires matching board evidence."
+  ],
+  "timeout_width": {
+    "fixtures": [
+      "tests/test_timeout_width.py",
+      "tests/timeout/test_timeout.c"
+    ],
+    "assertions": "Full uint32 milliseconds: exact ceiling, zero, full-width boundaries/samples, low/high clock rates and both tick ABIs; measured actual private header and identified semantic/width controls",
+    "limits": "Numerical/object checks do not establish kernel scheduling, physical latency or transport acceptance"
+  }
+}

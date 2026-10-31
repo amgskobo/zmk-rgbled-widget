@@ -1,0 +1,39 @@
+{
+  "shield": "tester_xiao rgbled_adapter",
+  "config": [
+    "CONFIG_RGBLED_WIDGET=y",
+    "CONFIG_ZMK_BEHAVIOR_RGBLED_WIDGET=y"
+  ],
+  "sources": [
+    "src/widget.c",
+    "src/behaviors/behavior_rgbled_widget.c"
+  ],
+  "variants": [
+    {
+      "name": "ble-usb",
+      "config": [
+        "CONFIG_ZMK_BLE=y",
+        "CONFIG_ZMK_USB=y"
+      ]
+    },
+    {
+      "name": "usb-only",
+      "extra_conf": "tests/integration/usb-only.conf",
+      "config": [
+        "# CONFIG_ZMK_BLE is not set",
+        "CONFIG_ZMK_USB=y"
+      ]
+    },
+    {
+      "name": "quiet-ignore-aml",
+      "extra_conf": "tests/integration/quiet-aml.conf",
+      "config": [
+        "CONFIG_RGBLED_WIDGET_LAYER_SINGLE_PULSE=y",
+        "CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK=0x200",
+        "CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS=1000",
+        "# CONFIG_RGBLED_WIDGET_SHOW_CONNECTION_STATUS is not set",
+        "# CONFIG_RGBLED_WIDGET_SHOW_BATTERY_STATUS is not set"
+      ]
+    }
+  ]
+}
