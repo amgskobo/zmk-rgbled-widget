@@ -82,6 +82,14 @@ then requires the new color to remain on at980ms and off by1020ms. A semaphore
 retains a cancellation/update that arrives before the worker starts its wait;
 serials discard older queued requests, including a return to the same layer.
 
+Debounced sleep cases also retain a change reserved before sleep, a change made
+while sleeping and a new post-wake change while old work is pending. The host
+fixture additionally enters sleep between callback claim and queue admission,
+and checks that an old callback cannot consume a newer timer early or twice.
+Full compiles four independent faults in these boundaries and requires each to
+fail its named runtime assertion three times. Both native pulse variants retain
+all earlier lifecycle assertions and run the new real-workqueue cases three times.
+
 The [retained focused entry](review-caller/README.md) runs the original four
 assertions three times each. Its old three failure expectations intentionally
 become product PASS after the repair; assertion bodies are unchanged.

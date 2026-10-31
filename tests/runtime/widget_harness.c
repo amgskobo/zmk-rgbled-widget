@@ -15,11 +15,14 @@ static void reset(void) {
 #if SHOW_LAYER_SINGLE_PULSE
     last_indicated_layer = 0;
     layer_pulse_serial = 0;
+    layer_indicate_pending = false;
+    layer_indicate_generation = 0;
     k_sem_reset(&layer_pulse_changed);
 #endif
     selected = preferred = ZMK_TRANSPORT_NONE; profile_open = peripheral_connected = false;
     layer = 0; battery = 80; battery_reads = battery_ready_after = 0;
     extra_active_layers = 0; reorder_layers = false;
+    mutex_unlock_hook = NULL;
     memset(peripheral_reads, 0, sizeof(peripheral_reads));
     memset(peripheral_ready_after, 0, sizeof(peripheral_ready_after));
     peripheral_battery[0] = 20; peripheral_battery[1] = 19;
@@ -30,6 +33,12 @@ static struct blink_item item(unsigned i) {
     memcpy(&v, led_msgq.data[(led_msgq.head + i) % 16], sizeof(v)); return v;
 }
 static void run_worker(void) { if (!setjmp(worker_done)) led_process_thread(NULL, NULL, NULL); }
+#if SHOW_LAYER_CHANGE
+static void run_layer_work(void) {
+    if (now_ms < layer_indicate_work.due) now_ms = layer_indicate_work.due;
+    indicate_layer_cb(NULL);
+}
+#endif
 static void test_gpio_and_worker(void) {
     reset(); set_rgb_leds(5, 30, 0);
     assert(edges == 2 && gpio_bits == 5 && now_ms == 30);
@@ -137,7 +146,7 @@ static void test_layers_and_boot(void) {
     reset(); zmk_event_t e = {0, 1}; led_layer_listener_cb(&e); assert(layer_indicate_work.schedules == 0);
     initialized = true; e.value = 0; led_layer_listener_cb(&e); assert(layer_indicate_work.schedules == 0);
     e.value = 1; led_layer_listener_cb(&e); assert(layer_indicate_work.schedules == 1 && layer_indicate_work.due == 100);
-    layer = 2; indicate_layer_cb(NULL); assert(led_msgq.count == 2);
+    layer = 2; run_layer_work(); assert(led_msgq.count == 2);
 #endif
 #if SHOW_LAYER_COLORS
     reset();
@@ -254,6 +263,63 @@ static void test_behavior(void) {
     count = led_msgq.count; assert(on_keymap_binding_released(&binding, event) == ZMK_BEHAVIOR_OPAQUE);
     assert(led_msgq.count == count && behavior_rgb_wdg_driver_api.locality == BEHAVIOR_LOCALITY_GLOBAL);
 }
+#if SHOW_LAYER_SINGLE_PULSE
+static void pulse_sleep_and_wake(void) {
+    zmk_event_t sleep = {1, ZMK_ACTIVITY_SLEEP};
+    zmk_event_t wake = {1, ZMK_ACTIVITY_ACTIVE};
+    led_layer_pulse_activity_cb(&sleep);
+    led_layer_pulse_activity_cb(&wake);
+}
+
+static void test_debounced_sleep(void) {
+    zmk_event_t change = {0, 1};
+    reset(); initialized = true;
+    layer = 3; led_layer_listener_cb(&change);
+    assert(layer_indicate_work.schedules == 1);
+    pulse_sleep_and_wake();
+    run_layer_work(); run_worker();
+    assert(!led_msgq.count && !edges && !sleeps);
+
+    reset(); initialized = true;
+    zmk_event_t sleep = {1, ZMK_ACTIVITY_SLEEP};
+    zmk_event_t wake = {1, ZMK_ACTIVITY_ACTIVE};
+    led_layer_pulse_activity_cb(&sleep);
+    layer = 4; led_layer_listener_cb(&change);
+    assert(!layer_indicate_work.schedules && "sleeping layer change scheduled work");
+    led_layer_pulse_activity_cb(&wake);
+    indicate_layer_cb(NULL); run_worker();
+    assert(!led_msgq.count && !edges && !sleeps);
+
+    /* Sleep after the callback claims its request but before it can enqueue
+     * the pulse. Keep the captured generation across that unlocked gap. */
+    reset(); initialized = true;
+    layer = 3; led_layer_listener_cb(&change);
+    now_ms = layer_indicate_work.due;
+    mutex_unlock_hook = pulse_sleep_and_wake;
+    indicate_layer_cb(NULL);
+    assert(led_generation == 1 && !mutex_unlock_hook);
+    assert(!led_msgq.count && "claimed layer work survived sleep");
+    run_worker(); assert(!edges && !sleeps);
+
+    /* An old callback may already be submitted when a new post-wake request
+     * is delayed. Do not consume the new request early or emit it twice. */
+    reset(); initialized = true;
+    layer = 2; led_layer_listener_cb(&change);
+    now_ms = layer_indicate_work.due;
+    pulse_sleep_and_wake(); now_ms += 20;
+    layer = 5; led_layer_listener_cb(&change);
+    indicate_layer_cb(NULL);
+    assert(!led_msgq.count && "new layer work ran before its debounce");
+    run_layer_work();
+    assert(led_msgq.count == 1 && item(0).layer_index == 5);
+    indicate_layer_cb(NULL);
+    assert(led_msgq.count == 1 && "layer request emitted more than once");
+    run_worker();
+    assert(!gpio_bits && sleeps == 1 &&
+           sleep_trace[0] == CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS);
+}
+#endif
+
 static void test_quiet_layer_pulse(void) {
 #if SHOW_LAYER_SINGLE_PULSE
     const unsigned pulse_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS;
@@ -319,14 +385,14 @@ static void test_quiet_layer_pulse(void) {
     /* A manual layer below AML still appears. Removing AML alone is silent. */
     layer = 9; extra_active_layers = BIT(6); led_layer_listener_cb(&change);
     assert(layer_indicate_work.schedules == 1);
-    indicate_layer_cb(NULL);
+    run_layer_work();
     assert(led_msgq.count == 1 && item(0).layer_index == 6 && item(0).color == 6);
     run_worker();
     layer = 6; extra_active_layers = 0; led_layer_listener_cb(&change);
     assert(layer_indicate_work.schedules == 1 && !led_msgq.count);
     layer = 0; led_layer_listener_cb(&change);
     assert(layer_indicate_work.schedules == 2);
-    indicate_layer_cb(NULL);
+    run_layer_work();
     assert(item(0).layer_index == 0 && item(0).color == 4);
     run_worker();
     /* Queued manual output remains valid when only the ignored layer enters. */
@@ -339,10 +405,11 @@ static void test_quiet_layer_pulse(void) {
     assert(!layer_indicate_work.schedules);
     layer = 9; extra_active_layers = BIT(9); led_layer_listener_cb(&change);
     assert(layer_indicate_work.schedules == 1);
-    indicate_layer_cb(NULL);
+    run_layer_work();
     assert(item(0).layer_index == 9 && item(0).color == 7);
     run_worker();
 #endif
+    test_debounced_sleep();
 #endif
 }
 

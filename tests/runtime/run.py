@@ -103,6 +103,38 @@ def main():
                                           "exit": result.returncode, "stderr": result.stderr}), flush=True)
                         assert result.returncode == -6 and diagnostic in result.stderr, option
                     print(option, "runtime control rejected 3/3 PASS", flush=True)
+            if mode == "full" and name == "quiet-pulse-central":
+                faults = (
+                    ("claim-generation", "indicate_layer_pulse(generation);",
+                     "ARG_UNUSED(generation);\n        indicate_layer_pulse(current_generation());",
+                     "claimed layer work survived sleep"),
+                    ("sleep-reschedule", "if (!led_sleeping && index != UINT8_MAX)",
+                     "if (index != UINT8_MAX)", "sleeping layer change scheduled work"),
+                    ("early-claim", "k_work_delayable_remaining_get(&layer_indicate_work) == 0",
+                     "true", "new layer work ran before its debounce"),
+                    ("duplicate-claim", "generation = layer_indicate_generation;\n        layer_indicate_pending = false;",
+                     "generation = layer_indicate_generation;", "layer request emitted more than once"),
+                )
+                for label, original_text, replacement, diagnostic in faults:
+                    shadow = work / label
+                    shutil.copytree(ROOT / "src", shadow / "src")
+                    source = shadow / "src/widget.c"
+                    text = source.read_text()
+                    assert text.count(original_text) == 1
+                    source.write_text(text.replace(original_text, replacement))
+                    harness = shadow / "tests/runtime/widget_harness.c"
+                    harness.parent.mkdir(parents=True)
+                    shutil.copy2(ROOT / "tests/runtime/widget_harness.c", harness)
+                    control = work / ("control-" + label)
+                    fault = [*command[:-3], str(harness), "-o", str(control)]
+                    print(json.dumps({"control": label, "compile": fault}), flush=True)
+                    subprocess.run(fault, check=True)
+                    for repeat in range(1, 4):
+                        result = subprocess.run([str(control)], capture_output=True, text=True)
+                        print(json.dumps({"control": label, "repeat": repeat,
+                                          "exit": result.returncode, "stderr": result.stderr}), flush=True)
+                        assert result.returncode == -6 and diagnostic in result.stderr
+                    print(label + " runtime control rejected 3/3 PASS", flush=True)
             if mode == "full" and name == "quiet-pulse-ignore-aml":
                 shadow = work / "control-ignore-bypassed"
                 shutil.copytree(ROOT / "src", shadow / "src")

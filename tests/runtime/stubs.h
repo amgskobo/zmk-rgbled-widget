@@ -53,11 +53,18 @@ static struct device fake_led_device;
 struct k_mutex { unsigned depth; };
 #define K_MUTEX_DEFINE(n) struct k_mutex n
 static unsigned mutex_depth;
+static void (*mutex_unlock_hook)(void);
 static int k_mutex_lock(struct k_mutex *m, int timeout) {
     assert(timeout == K_FOREVER && !m->depth); m->depth++; mutex_depth++; return 0;
 }
 static int k_mutex_unlock(struct k_mutex *m) {
-    assert(m->depth == 1 && mutex_depth); m->depth--; mutex_depth--; return 0;
+    assert(m->depth == 1 && mutex_depth); m->depth--; mutex_depth--;
+    if (mutex_unlock_hook) {
+        void (*hook)(void) = mutex_unlock_hook;
+        mutex_unlock_hook = NULL;
+        hook();
+    }
+    return 0;
 }
 struct k_msgq { unsigned size, count, head; unsigned char data[16][32]; };
 #define K_MSGQ_DEFINE(n, size_, count_, align_) static struct k_msgq n = {.size = size_}
@@ -108,6 +115,9 @@ static int k_msgq_get(struct k_msgq *q, void *item, int timeout) {
 static int k_work_reschedule(struct k_work_delayable *w, unsigned ms) {
     assert(w->handler);
     w->due = now_ms + ms; w->schedules++; return 0;
+}
+static unsigned k_work_delayable_remaining_get(const struct k_work_delayable *w) {
+    return w->due > now_ms ? w->due - now_ms : 0;
 }
 static void k_work_init_delayable(struct k_work_delayable *w, void (*cb)(struct k_work *)) { w->handler = cb; }
 enum zmk_transport { ZMK_TRANSPORT_NONE, ZMK_TRANSPORT_USB, ZMK_TRANSPORT_BLE };

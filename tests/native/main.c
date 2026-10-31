@@ -30,6 +30,49 @@ static void wait_color(uint8_t color) {
     while (output() != color && k_uptime_get() < limit) { k_msleep(1); }
     __ASSERT_NO_MSG(output() == color);
 }
+
+#if SHOW_LAYER_SINGLE_PULSE
+static void require_quiet(uint32_t duration_ms) {
+    int64_t deadline = k_uptime_get() + duration_ms;
+    while (k_uptime_get() < deadline) {
+        __ASSERT(output() == 0, "A retired debounced pulse lit after wake");
+        k_msleep(1);
+    }
+    __ASSERT_NO_MSG(output() == 0 && k_msgq_num_used_get(&led_msgq) == 0);
+}
+
+static void test_debounced_sleep(void) {
+    zmk_event_t change = {0, 1};
+    test_layer = 0;
+    k_mutex_lock(&led_state_lock, K_FOREVER);
+    last_indicated_layer = 0;
+    k_mutex_unlock(&led_state_lock);
+
+    test_layer = 3; led_layer_listener_cb(&change);
+    __ASSERT_NO_MSG(k_work_delayable_is_pending(&layer_indicate_work));
+    activity(ZMK_ACTIVITY_SLEEP);
+    activity(ZMK_ACTIVITY_ACTIVE);
+    require_quiet(CONFIG_RGBLED_WIDGET_LAYER_DEBOUNCE_MS + 30);
+
+    activity(ZMK_ACTIVITY_SLEEP);
+    test_layer = 4; led_layer_listener_cb(&change);
+    __ASSERT(!k_work_delayable_is_pending(&layer_indicate_work),
+             "A layer change scheduled a new pulse while sleeping");
+    activity(ZMK_ACTIVITY_ACTIVE);
+    require_quiet(CONFIG_RGBLED_WIDGET_LAYER_DEBOUNCE_MS + 30);
+
+    /* A new post-wake request still works when old work was pending. */
+    test_layer = 5; led_layer_listener_cb(&change);
+    activity(ZMK_ACTIVITY_SLEEP);
+    activity(ZMK_ACTIVITY_ACTIVE);
+    test_layer = 6; led_layer_listener_cb(&change);
+    wait_color(6);
+    k_msleep(CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS + 20);
+    __ASSERT_NO_MSG(output() == 0 && k_msgq_num_used_get(&led_msgq) == 0);
+    printk("RGB_DEBOUNCED_SLEEP_COMPLETE pending asleep post-wake PASS\n");
+}
+#endif
+
 int main(void) {
     k_thread_suspend(led_init_tid);
     __ASSERT(led_dev == DEVICE_DT_GET(DT_PARENT(DT_ALIAS(led_red))),
@@ -47,6 +90,7 @@ int main(void) {
     k_msleep(120);
     __ASSERT_NO_MSG(output() == 0 && atomic_get(&test_battery_reads) == 0);
     __ASSERT_NO_MSG(k_msgq_num_used_get(&led_msgq) == 0);
+    test_debounced_sleep();
 #if CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK
     zmk_event_t change = {0, 1};
     test_layer = 0;

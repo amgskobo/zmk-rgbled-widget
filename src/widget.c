@@ -112,6 +112,8 @@ static uint32_t led_generation;
 #if SHOW_LAYER_SINGLE_PULSE
 static K_SEM_DEFINE(layer_pulse_changed, 0, 1);
 static uint32_t layer_pulse_serial;
+static bool layer_indicate_pending;
+static uint32_t layer_indicate_generation;
 #endif
 
 // low-level method to control the LED
@@ -413,6 +415,7 @@ static int led_layer_pulse_activity_cb(const zmk_event_t *eh) {
     if (ev->state == ZMK_ACTIVITY_SLEEP) {
         led_sleeping = true;
         ++led_generation;
+        layer_indicate_pending = false;
         set_rgb_leds_locked(0);
         k_sem_give(&layer_pulse_changed);
     } else {
@@ -440,11 +443,9 @@ static uint8_t pulse_layer_index(uint32_t ignored_ids) {
     }
     return UINT8_MAX;
 }
-#endif
-void indicate_layer(void) {
-    uint8_t index = zmk_keymap_highest_layer_active();
-#if SHOW_LAYER_SINGLE_PULSE
-    index = pulse_layer_index(CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK);
+
+static void indicate_layer_pulse(uint32_t generation) {
+    uint8_t index = pulse_layer_index(CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK);
     if (index >= sizeof(layer_color_idx)) {
         return;
     }
@@ -452,9 +453,15 @@ void indicate_layer(void) {
                                .color = layer_color_idx[index],
                                .layer_pulse = true,
                                .layer_index = index};
-    queue_blink(&pulse);
-    return;
+    queue_blink_for_generation(&pulse, generation);
+}
 #endif
+
+void indicate_layer(void) {
+#if SHOW_LAYER_SINGLE_PULSE
+    indicate_layer_pulse(current_generation());
+#else
+    uint8_t index = zmk_keymap_highest_layer_active();
     struct blink_item blink = {.duration_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS,
                                             .color = CONFIG_RGBLED_WIDGET_LAYER_COLOR,
                                             .sleep_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS};
@@ -470,25 +477,54 @@ void indicate_layer(void) {
             queue_blink(&last_blink);
         }
     }
+#endif
 }
 #endif // !IS_ENABLED(CONFIG_ZMK_SPLIT) || IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 
 #if SHOW_LAYER_CHANGE
-static void indicate_layer_cb(struct k_work *work) { indicate_layer(); }
+static void indicate_layer_cb(struct k_work *work);
 static K_WORK_DELAYABLE_DEFINE(layer_indicate_work, indicate_layer_cb);
 #if SHOW_LAYER_SINGLE_PULSE
 static uint8_t last_indicated_layer;
 #endif
 
+static void indicate_layer_cb(struct k_work *work) {
+#if SHOW_LAYER_SINGLE_PULSE
+    uint32_t generation = 0;
+    k_mutex_lock(&led_state_lock, K_FOREVER);
+    /* A callback already submitted before rescheduling must not consume the
+     * newer request before its debounce expires, or emit it a second time. */
+    bool ready = layer_indicate_pending && !led_sleeping &&
+                 layer_indicate_generation == led_generation &&
+                 k_work_delayable_remaining_get(&layer_indicate_work) == 0;
+    if (ready) {
+        generation = layer_indicate_generation;
+        layer_indicate_pending = false;
+    }
+    k_mutex_unlock(&led_state_lock);
+    if (ready) {
+        /* Sleep may start after the claim: retain its original generation
+         * through layer lookup and queue admission. */
+        indicate_layer_pulse(generation);
+    }
+#else
+    indicate_layer();
+#endif
+}
+
 static int led_layer_listener_cb(const zmk_event_t *eh) {
 #if SHOW_LAYER_SINGLE_PULSE
     uint8_t index = pulse_layer_index(CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK);
+    k_mutex_lock(&led_state_lock, K_FOREVER);
     if (initialized && index != last_indicated_layer) {
         last_indicated_layer = index;
-        if (index != UINT8_MAX) {
+        if (!led_sleeping && index != UINT8_MAX) {
+            layer_indicate_generation = led_generation;
+            layer_indicate_pending = true;
             k_work_reschedule(&layer_indicate_work, K_MSEC(CONFIG_RGBLED_WIDGET_LAYER_DEBOUNCE_MS));
         }
     }
+    k_mutex_unlock(&led_state_lock);
 #else
     // ignore if not initialized yet or layer off events
     if (initialized && as_zmk_layer_state_changed(eh)->state) {
@@ -607,9 +643,13 @@ extern void led_init_thread(void *d0, void *d1, void *d2) {
 #endif // SHOW_LAYER_COLORS
 
 #if SHOW_LAYER_SINGLE_PULSE
+    k_mutex_lock(&led_state_lock, K_FOREVER);
     last_indicated_layer = pulse_layer_index(CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK);
-#endif
     initialized = true;
+    k_mutex_unlock(&led_state_lock);
+#else
+    initialized = true;
+#endif
     LOG_INF("RGB indicator ready");
 }
 

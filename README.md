@@ -61,6 +61,8 @@ Both activation and release are considered when the highest layer changes;
 events that leave it unchanged do not schedule another pulse. Debouncing keeps
 the latest layer, and queued pulses for an obsolete layer are discarded.
 Sleep cancels old indications; boot and wake alone do not produce a layer pulse.
+This includes debounced changes still waiting to be displayed. Layer changes
+while asleep do not request a pulse; a new change after wake uses normal debounce.
 `CONFIG_RGBLED_WIDGET_LAYER_IGNORE_MASK` excludes stable layer IDs from this
 single-pulse selection. For example, `0x200` ignores automatic mouse layer ID9.
 Entering or leaving that layer alone is silent; a manual layer below it still

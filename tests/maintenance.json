@@ -25,6 +25,12 @@
   "gaps": [
     "Physical USB/BLE/split delivery, timing, power and retention require matching production-board evidence."
   ],
+  "debounced_sleep": {
+    "fixtures": ["tests/runtime/widget_harness.c", "tests/native/main.c"],
+    "controls": ["claim-generation", "sleep-reschedule", "early-claim", "duplicate-claim"],
+    "contract": "Sleep retires pending and claimed reservations; sleeping changes do not schedule, and new post-wake work honors its debounce and emits once.",
+    "physical": "NOT RUN"
+  },
   "timeout_width": {
     "entry": "python3 -m unittest discover -s tests -p test_timeout_width.py -v",
     "contract": "Full uint32 milliseconds, exact ceiling and configured kernel tick ABI; independent wide oracle and identified math/width controls",
