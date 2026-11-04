@@ -13,7 +13,10 @@
     "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_ABSOLUTE_OUTPUT; real kernel/LED/GPIO emulator, controlled ZMK APIs, same binary three times, exact invalid-parent compiler rejections",
     "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output ANOTHER_FRESH_OUTPUT --wide-indices; same lifecycle assertions with uint32 child indices above255",
     "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_PULSE_OUTPUT --layer-pulse; quiet boot/status, timed layer colors and sleep cancellation, same binary three times",
-    "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_MASKED_OUTPUT --layer-pulse --ignore-aml; ignored automatic layer with a visible manual layer beneath it, same binary three times"
+    "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_MASKED_OUTPUT --layer-pulse --ignore-aml; ignored automatic layer with a visible manual layer beneath it, same binary three times",
+    "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_STATUS_OUTPUT --status-only; status-only queued/running/retry sleep cancellation, same binary three times",
+    "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_PERIPHERAL_OUTPUT --status-only --peripheral; split peripheral lifecycle and connection colors, same binary three times",
+    "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_USB_HIDDEN_OUTPUT --hide-usb; actual profile colors while USB is selected, same binary three times"
   ],
   "coverage_map": "tests/contract.json",
   "preserved_assertions": "Relocated fixtures retain their prior assertions; no snapshot auto-accept or unique assertion removal.",
@@ -34,6 +37,12 @@
   "timeout_width": {
     "entry": "python3 -m unittest discover -s tests -p test_timeout_width.py -v",
     "contract": "Full uint32 milliseconds, exact ceiling and configured kernel tick ABI; independent wide oracle and identified math/width controls",
+    "physical": "NOT RUN"
+  },
+  "status_sleep_and_connectivity": {
+    "fixtures": ["tests/runtime/widget_harness.c", "tests/native/main.c"],
+    "controls": ["status-sleep (USB/status-only and peripheral)", "connectivity-retirement", "connectivity-claim", "connectivity-early", "connectivity-duplicate", "usb-hidden-connected"],
+    "contract": "Every role/mode retires old output at sleep; deferred callbacks retain their generation and honor a new debounce exactly once; hidden USB indication follows the actual BLE profile state.",
     "physical": "NOT RUN"
   }
 }

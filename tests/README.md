@@ -34,6 +34,29 @@ The fixture establishes API/DT compilation, not physical wiring or runtime
 timing. No network update or dependency source patch is performed.
 Both Python entries accept `--jobs` (default2) as the compiler budget. Keep
 their fresh output outside source and account for other concurrent test jobs.
+Each supported core retains BLE+USB, USB-only and masked quiet-pulse builds,
+and also builds status-only, hidden-USB-color and split-peripheral status
+variants. `tests/integration/dependencies.json` selects stock ZMK
+`5b51501fead672c41b5cfb396f3dafe0894bf4e9`, DYA
+`e5c9b6915b56801193e359dd9bad4a167ce0d1b8` and Zephyr
+`10ba6d0cb38bc3d258775d27982f707599320085`. Resolve each clean workspace in
+container storage before running; ordinary test execution does not fetch inputs.
+
+Both exact supported-core pins already provide `app/boards/shields/tester_xiao/`:
+the real shield has eleven direct-scan inputs and eleven mapped positions. The
+owner's unchanged eleven bindings use that shield together with `rgbled_adapter`;
+no sibling test fixture, duplicate shield or dependency patch is required.
+`tests/integration/config/tester_xiao.conf` explicitly enables BLE, USB and settings
+for the base matrix, overriding the tester shield's BLE/settings defaults.
+At the pinned Zephyr revision, the owner shield configuration is merged before
+`EXTRA_CONF_FILE`; USB-only still disables BLE and the split-peripheral fragment
+still disables USB. All six variants per core retain their configuration/source/
+UF2 assertions and additionally require settings to remain enabled. These are
+build-only fixtures and do not establish wiring or physical transport acceptance.
+The split-peripheral USB-disabled check accepts `n` or an omitted USB symbol,
+as produced when the pinned core's role dependency is unmet, and rejects any
+enabled USB assignment. The split-role and every positive configuration check
+remain required.
 
 ## Persistent layer color saturation
 
@@ -119,6 +142,49 @@ and uint8 indices respectively; the before-fix binaries and ordered logs are
 preserved externally to the owner source tree.
 ZMK events, endpoint/battery inputs and behavior registration are controlled.
 It is kernel/driver-API evidence, not physical GPIO, radio or power acceptance.
+
+## Status sleep and deferred connectivity
+
+All seven original host feature/role configurations now exercise sleep with
+queued, full-queue and running status indications, including a battery retry.
+ACTIVE and IDLE leave status-only/peripheral output off; persistent colors
+restore their latest target. Sleeping critical-battery and connectivity requests
+are suppressed. Existing exact edge/time/retry assertions are retained.
+
+Controlled callback interleavings cover a connectivity reservation pending at
+sleep, sleep between claim and admission, an old callback dispatched before a
+new post-wake debounce, and duplicate dispatch. The original endpoint/preference
+table is expanded with independent BLE connected/open state; selecting USB with
+its indicator disabled follows the BLE profile state. Peripheral connection
+colors remain independent of the central endpoint.
+
+The full host entry adds independent status-only sleep, connectivity retirement,
+claim-generation, early-claim, duplicate-claim and USB-hidden color faults. Every
+compiled control must fail its designated behavioral assertion three times;
+compile/dependency failures do not establish detection. All original quiet-status,
+mask, layer-debounce and arithmetic negative controls remain enabled.
+
+Run the real-kernel entry three more times with separate fresh output directories:
+
+```bash
+python3 tests/native/run.py --zephyr "$RESOLVED_ZEPHYR" --cmsis "$RESOLVED_CMSIS" \
+  --output "$FRESH_STATUS_OUTPUT" --status-only
+python3 tests/native/run.py --zephyr "$RESOLVED_ZEPHYR" --cmsis "$RESOLVED_CMSIS" \
+  --output "$FRESH_PERIPHERAL_OUTPUT" --status-only --peripheral
+python3 tests/native/run.py --zephyr "$RESOLVED_ZEPHYR" --cmsis "$RESOLVED_CMSIS" \
+  --output "$FRESH_USB_HIDDEN_OUTPUT" --hide-usb
+```
+
+Each entry builds once and runs that binary three times, preserving the four
+existing native variants. Status-only and peripheral cases use actual threaded
+blink/retry/queue sleep cancellation. Every non-pulse native variant blocks the
+real system workqueue while scheduling connectivity across sleep/wake, requires
+quiet restored output, then verifies a fresh post-wake request. It also checks
+actual LED/GPIO-emulator colors for the selected USB endpoint with connected,
+open and disconnected BLE profiles, or the peripheral's two connection states.
+`RGB_CONNECTIVITY_SLEEP_COMPLETE` and `RGB_ENDPOINT_COLORS_COMPLETE` are required
+along with the original completion marker in every non-pulse repeat. These are
+controlled inputs to actual kernel/driver APIs, with no physical power claim.
 
 ## 32-bit timeout arithmetic
 

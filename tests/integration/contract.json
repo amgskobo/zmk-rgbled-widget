@@ -1,6 +1,7 @@
 {
   "shield": "tester_xiao rgbled_adapter",
   "config": [
+    "CONFIG_SETTINGS=y",
     "CONFIG_RGBLED_WIDGET=y",
     "CONFIG_ZMK_BEHAVIOR_RGBLED_WIDGET=y"
   ],
@@ -33,6 +34,38 @@
         "CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS=1000",
         "# CONFIG_RGBLED_WIDGET_SHOW_CONNECTION_STATUS is not set",
         "# CONFIG_RGBLED_WIDGET_SHOW_BATTERY_STATUS is not set"
+      ]
+    },
+    {
+      "name": "status-only",
+      "extra_conf": "tests/integration/status-only.conf",
+      "config": [
+        "CONFIG_RGBLED_WIDGET_SHOW_CONNECTION_STATUS=y",
+        "CONFIG_RGBLED_WIDGET_SHOW_BATTERY_STATUS=y",
+        "# CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS is not set",
+        "# CONFIG_RGBLED_WIDGET_SHOW_LAYER_CHANGE is not set"
+      ]
+    },
+    {
+      "name": "usb-hidden",
+      "extra_conf": "tests/integration/usb-hidden.conf",
+      "config": [
+        "CONFIG_ZMK_BLE=y",
+        "CONFIG_ZMK_USB=y",
+        "# CONFIG_RGBLED_WIDGET_CONN_SHOW_USB is not set"
+      ]
+    },
+    {
+      "name": "peripheral-status",
+      "extra_conf": "tests/integration/peripheral.conf",
+      "config": [
+        "CONFIG_ZMK_SPLIT=y",
+        "CONFIG_ZMK_SPLIT_BLE=y",
+        "CONFIG_ZMK_BLE=y",
+        "# CONFIG_ZMK_SPLIT_ROLE_CENTRAL is not set",
+        "# CONFIG_ZMK_USB is not set",
+        "# CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS is not set",
+        "# CONFIG_RGBLED_WIDGET_SHOW_LAYER_CHANGE is not set"
       ]
     }
   ]

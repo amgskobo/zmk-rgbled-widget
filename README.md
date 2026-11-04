@@ -40,6 +40,9 @@ It is used to indicate battery level and BLE connection status in a minimalist w
   endpoint/profile changes and on-demand connection indications. The default is `y`.
 - Blink 🔵 for connected, 🟡 for open (advertising), 🔴 for disconnected profiles on boot after the battery blink, and following every BT profile switch (only on central side for splits)
   - Enable `CONFIG_RGBLED_WIDGET_CONN_SHOW_USB` to blink cyan if USB currently has priority over BLE, instead of above
+  - With that option disabled, selecting USB still shows the active BLE
+    profile's actual connected/open/disconnected state. USB selection alone
+    does not make a disconnected BLE profile show the connected color.
 - Blink 🔵 for connected, 🔴 for disconnected on peripheral side of splits
 
 ### Layer state
@@ -143,10 +146,17 @@ As with other indications, a full queue drops a new request. Boot initialization
 keeps its separate battery-first sequence. Connectivity work is initialized
 statically and accepts requests before the LED thread starts.
 
-With persistent layer colors enabled, sleep turns the output off and invalidates
-older queued or running indications. Layer changes while asleep update the saved
-target; ACTIVE or IDLE restores that latest color. No old blink or battery retry
-may replace it after wake. Indication delays never hold the output-state mutex.
+Sleep requests output off and invalidates older queued, running and deferred
+indications in every display mode and split role, including status-only and
+peripheral builds. Requests made while sleeping are suppressed. A new request
+after ACTIVE or IDLE uses the ordinary debounce; an older submitted callback
+cannot consume that new request early or twice. With persistent layer colors,
+layer changes while asleep update the saved target and wake restores that latest
+color. Other modes stay off until a new indication. No old blink, connectivity
+reservation or battery retry may replace the restored output after wake.
+Indication delays never hold the output-state mutex. This describes the widget's
+LED API requests; physical GPIO retention and power consumption require hardware
+acceptance.
 
 > [!NOTE]
 > The behaviors can be used even when you use split keyboards with different controllers that don't all support the widget.

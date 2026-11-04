@@ -10,10 +10,13 @@
     "sleep_and_lifecycle": "test_caller_and_sleep; queued/running/retry sleep, wake, latest target, generation invalidation and queue saturation",
     "real_kernel": "native/main.c and behavior_call.c include the unchanged production sources; early work submission, actual delayed blink/retry sleeps, queue/mutex and GPIO-emulator output; three runs of one binary",
     "alias_device_and_indices": "native/main.c requires the RGB alias parent instead of an unrelated enabled gpio-leds device and preserves the unrelated output; run.py checks exact mixed/wrong-parent compiler diagnostics and --wide-indices repeats the lifecycle with children256..258",
-    "supported_core_interfaces": "integration/run.py; stock/DYA with BLE+USB and USB-only, enabled sources/configuration and actual UF2",
+    "supported_core_interfaces": "integration/run.py; stock/DYA with BLE+USB, USB-only, quiet masked pulse, status-only, hidden USB color and split-peripheral status; enabled sources/configuration and actual UF2",
     "quiet_layer_pulse": "runtime/widget_harness.c:test_quiet_layer_pulse; quiet boot/status, exact timed color/off, activation/release, unchanged layer, stale queue and sleep; native/run.py --layer-pulse repeats the real-kernel variant three times",
     "ignored_auto_layer": "Masked host variants retain100 silent entry/exit pairs, manual selection below AML, base return, queued-output validity, empty eligible set and stable-ID reordering; compiled bypass control fails3/3; native --layer-pulse --ignore-aml and both-core masked API fixture",
-    "debounced_sleep": "runtime/widget_harness.c:test_debounced_sleep covers pending/asleep/claimed work and new post-wake debounce/one-shot admission; four runtime faults fail3/3; native/main.c:test_debounced_sleep repeats real-workqueue pending/asleep/post-wake cases in both pulse variants"
+    "debounced_sleep": "runtime/widget_harness.c:test_debounced_sleep covers pending/asleep/claimed work and new post-wake debounce/one-shot admission; four runtime faults fail3/3; native/main.c:test_debounced_sleep repeats real-workqueue pending/asleep/post-wake cases in both pulse variants",
+    "status_sleep_all_modes": "runtime/widget_harness.c:test_all_mode_sleep_and_connectivity; every original role/mode, queued/full/running/retry cancellation, critical requests while asleep, ACTIVE/IDLE and generation retirement; native --status-only and --status-only --peripheral use real kernel/LED/GPIO emulator",
+    "connectivity_reservations": "Host pending/claim/admission/new-debounce/duplicate interleavings and real-system-workqueue sleep/wake reservation checks; full has four independent connectivity faults required3/3",
+    "selected_output_profile_colors": "Host endpoint/preference/open/connected table and native central/peripheral LED colors; native --hide-usb; full hidden-USB connected-color fault required3/3"
   },
   "gaps": [
     "ZMK events and battery/endpoint APIs are controlled in host/native fixtures.",
