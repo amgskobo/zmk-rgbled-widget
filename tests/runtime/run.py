@@ -331,6 +331,26 @@ def main():
                     controls.extend(
                         [
                             (
+                                "unready-driver",
+                                [
+                                    (
+                                        "if (!device_is_ready(led_dev)) { return; }",
+                                        "",
+                                    )
+                                ],
+                                "unready LED driver was called or cached as successful",
+                            ),
+                            (
+                                "failed-channel-cache",
+                                [
+                                    (
+                                        "if (result == 0)",
+                                        "if (true)",
+                                    )
+                                ],
+                                "failed LED channel was cached as successful",
+                            ),
+                            (
                                 "connectivity-retirement",
                                 [
                                     (
@@ -441,6 +461,16 @@ def main():
 
 if __name__ == "__main__":
     main()
+    subprocess.run(
+        ["python3", "-m", "unittest", "discover", "-s", str(ROOT / "tests"),
+         "-p", "test_native_verifier.py", "-v"],
+        check=True,
+    )
+    if os.environ.get("ZMK_TEST_MODE", "quick") == "full":
+        subprocess.run(
+            ["python3", str(ROOT / "tests/native/verifier_negative_control.py")],
+            check=True,
+        )
     subprocess.run(
         [
             "python3",

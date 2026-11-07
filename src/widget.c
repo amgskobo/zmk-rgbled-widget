@@ -125,18 +125,22 @@ static uint32_t layer_pulse_serial;
 // low-level method to control the LED
 /* The caller owns led_state_lock. Never keep it over an indication delay. */
 static void set_rgb_leds_locked(uint8_t color) {
+  if (!device_is_ready(led_dev)) {
+    return;
+  }
   for (uint8_t pos = 0; pos < 3; pos++) {
     uint8_t bit = BIT(pos);
     if ((bit & led_current_color) != (bit & color)) {
-      // bits are different, so we need to change one
-      if (bit & color) {
-        led_on(led_dev, rgb_idx[pos]);
+      int result = (bit & color) ? led_on(led_dev, rgb_idx[pos])
+                                 : led_off(led_dev, rgb_idx[pos]);
+      if (result == 0) {
+        /* Failed channels stay eligible for a later request of this color. */
+        led_current_color = (led_current_color & ~bit) | (color & bit);
       } else {
-        led_off(led_dev, rgb_idx[pos]);
+        LOG_ERR("LED channel %u output failed (%d)", pos, result);
       }
     }
   }
-  led_current_color = color;
 }
 
 static void set_rgb_leds(uint8_t color, uint32_t duration_ms,

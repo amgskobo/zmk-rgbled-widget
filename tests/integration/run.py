@@ -93,6 +93,7 @@ def main():
             if p.is_file() and not p.is_symlink()
         }
         (output / "source-inputs.json").write_text(json.dumps(hashes, indent=2))
+        shutil.copytree(stage, output / "owner-source", symlinks=True)
         results = []
         env = dict(
             os.environ,
@@ -152,6 +153,41 @@ def main():
                 p = build / rel
                 if p.is_file():
                     shutil.copyfile(p, destination / p.name)
+            # These paths can live in TemporaryDirectory. Retain their exact
+            # bytes while the compiler inputs still exist, including failures.
+            compiled_inputs = []
+            commands_file = build / "compile_commands.json"
+            if commands_file.is_file():
+                for item in json.loads(commands_file.read_text()):
+                    source = Path(item["file"]).resolve()
+                    entry = {"path": str(source)}
+                    if source.is_file():
+                        entry["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+                        if source.is_relative_to(build):
+                            retained = destination / "generated" / source.relative_to(build)
+                            retained.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copyfile(source, retained)
+                            entry["retained"] = str(retained.relative_to(destination))
+                    compiled_inputs.append(entry)
+                (destination / "compiled-inputs.json").write_text(json.dumps(compiled_inputs, indent=2))
+            generated = build / "zephyr/include/generated"
+            if generated.is_dir():
+                shutil.copytree(generated, destination / "generated-headers", symlinks=True)
+            if (build / "build.ninja").is_file():
+                dependencies = subprocess.run(
+                    ["ninja", "-C", str(build), "-t", "deps"], capture_output=True, text=True
+                )
+                (destination / "compiler-dependencies.log").write_text(dependencies.stdout + dependencies.stderr)
+                header_inputs = {}
+                for line in dependencies.stdout.splitlines():
+                    if line.startswith("    "):
+                        path = Path(line.strip())
+                        if not path.is_absolute():
+                            path = build / path
+                        if path.is_file():
+                            header_inputs[str(path.resolve())] = hashlib.sha256(path.read_bytes()).hexdigest()
+                (destination / "compiler-dependencies.json").write_text(json.dumps(
+                    {"exit": dependencies.returncode, "inputs": header_inputs}, indent=2))
             row["artifacts"] = {
                 p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in destination.iterdir()

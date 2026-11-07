@@ -8,6 +8,9 @@ static void reset(void) {
   now_ms = gpio_bits = edges = sleeps = 0;
   initialized = false;
   led_current_color = led_layer_color = 0;
+  led_ready = true;
+  memset(led_error, 0, sizeof(led_error));
+  memset(led_attempts, 0, sizeof(led_attempts));
   led_sleeping = false;
   led_generation = 0;
   sleep_hook = NULL;
@@ -89,6 +92,8 @@ static void test_gpio_and_worker(void) {
     assert(gpio_trace[i].at == times[i] &&
            gpio_trace[i].channel == channels[i] &&
            gpio_trace[i].on == states[i]);
+    printf("RGB edge at_ms=%u channel=%u on=%u\n", gpio_trace[i].at,
+           gpio_trace[i].channel, gpio_trace[i].on);
   }
   reset();
   led_layer_color = 7;
@@ -109,6 +114,53 @@ static void test_gpio_and_worker(void) {
     assert(led_layer_color == 2 && sleeps == 0);
   }
 }
+static void test_gpio_driver_recovery(void) {
+  reset();
+  led_ready = false;
+  set_rgb_leds(5, 0, 0);
+  assert(!led_attempts[0] && !led_attempts[1] && !led_attempts[2] &&
+         !led_current_color && !gpio_bits &&
+         "unready LED driver was called or cached as successful");
+  led_ready = true;
+  set_rgb_leds(5, 0, 0);
+  assert(gpio_bits == 5 && led_current_color == 5 && edges == 2);
+  led_ready = false;
+  set_rgb_leds(0, 0, 0);
+  assert(led_current_color == 5 && gpio_bits == 5 && edges == 2);
+  led_ready = true;
+  set_rgb_leds(0, 0, 0);
+  assert(!led_current_color && !gpio_bits && edges == 4);
+
+  reset();
+  led_error[1] = -EIO;
+  set_rgb_leds(7, 0, 0);
+  assert(gpio_bits == 5 && led_current_color == 5 && edges == 2 &&
+         "failed LED channel was cached as successful");
+  assert(led_attempts[0] == 1 && led_attempts[1] == 1 && led_attempts[2] == 1);
+  led_error[1] = 0;
+  set_rgb_leds(7, 0, 0);
+  assert(gpio_bits == 7 && led_current_color == 7 && edges == 3);
+  assert(led_attempts[0] == 1 && led_attempts[1] == 2 && led_attempts[2] == 1);
+
+  led_error[1] = -EIO;
+  set_rgb_leds(1, 0, 0);
+  assert(gpio_bits == 3 && led_current_color == 3 && edges == 4);
+  led_error[1] = 0;
+  set_rgb_leds(1, 0, 0);
+  assert(gpio_bits == 1 && led_current_color == 1 && edges == 5);
+  assert(led_attempts[0] == 1 && led_attempts[1] == 4 && led_attempts[2] == 2);
+
+  /* A failed sleep-off remains eligible for the next explicit sleep request. */
+  led_error[0] = -EIO;
+  zmk_event_t sleep = {1, ZMK_ACTIVITY_SLEEP};
+  led_activity_listener_cb(&sleep);
+  assert(led_sleeping && gpio_bits == 1 && led_current_color == 1);
+  led_error[0] = 0;
+  led_activity_listener_cb(&sleep);
+  assert(led_sleeping && !gpio_bits && !led_current_color && edges == 6);
+  puts("RGB driver recovery: PASS (unready, partial on/off, sleep-off retry)");
+}
+
 static void test_connectivity_and_queue(void) {
   reset();
   zmk_event_t ev = {0};
@@ -746,5 +798,6 @@ int main(void) {
   puts("RGB widget runtime: PASS groups=6 (controlled APIs, no physical timing "
        "claim)");
 #endif
+  test_gpio_driver_recovery();
   return 0;
 }

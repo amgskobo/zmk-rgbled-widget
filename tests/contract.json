@@ -2,6 +2,8 @@
   "owner": "zmk-rgbled-widget",
   "entry": "bash tests/run-host-docker.sh",
   "families": {
+    "gpio_driver_recovery": "runtime/widget_harness.c:test_gpio_driver_recovery; unready device, independent on/off channel failures, same-target retry and sleep-off retry in every feature/role configuration; two compiled controls fail their named assertions3/3",
+    "native_clean_admission": "native/verifier.py and test_native_verifier.py; nonempty completion, process exit and diagnostics on both streams; real recovering ASan/UBSan controls require exit0 plus markers and a diagnostic before rejection; original predicate fails both assertions",
     "gpio_and_ordered_blinks": "runtime/widget_harness.c:test_gpio_and_worker; exact edge values/order/timestamps and unchanged separation intervals",
     "endpoint_and_bounded_queue": "test_connectivity_and_queue; USB/BLE/preference/profile/role table, coalescing and saturation",
     "battery": "test_battery; exact boundaries, local/peer retries, lookup failure and recovery; test_caller_and_sleep and review-caller/caller.c retain nonwaiting behavior",

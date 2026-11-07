@@ -7,6 +7,8 @@
   ],
   "unsupported_core_status": "NOT APPLICABLE",
   "commands": [
+    "python3 -m unittest discover -s tests -p test_native_verifier.py -v; 13 verifier cases, including two real recovering sanitizer controls",
+    "python3 tests/native/verifier_negative_control.py; original exit/marker-only predicate must fail both live tests with ValueError not raised",
     "bash tests/run-host-docker.sh",
     "python3 tests/integration/run.py --workspace /absolute/resolved/workspace --core stock-zmk|dya --output /absolute/new/output",
     "python3 tests/review-caller/run.py FRESH_OUTPUT; original four assertions must pass three times",
@@ -26,8 +28,21 @@
     "outputs": "Use a fresh evidence directory; existing evidence is never overwritten."
   },
   "gaps": [
+    "GPIO API failure/recovery is controlled; physical LED fail-off and real driver recovery are NOT RUN. PWM output is NOT APPLICABLE: this owner requires gpio-leds.",
     "Physical USB/BLE/split delivery, timing, power and retention require matching production-board evidence."
   ],
+  "native_profiles": {
+    "entry_option": "--profile default|optimized|asan|asan-ubsan",
+    "matrix": "Repeat all seven declared native variants under each profile, one binary per configuration and three runs per binary; exact invalid-parent compiler guards in the default base variant only",
+    "strict_sanitizers": "CONFIG_ASAN_RECOVER=n, -fno-sanitize-recover=all and halt-on-error runtime settings; inspect effective config and complete compiler flags",
+    "admission": "Exit0 plus all required markers and no sanitizer diagnostics on stdout/stderr; pulse requires the debounced-sleep marker"
+  },
+  "gpio_driver_recovery": {
+    "fixture": "tests/runtime/widget_harness.c:test_gpio_driver_recovery",
+    "controls": ["unready-driver", "failed-channel-cache"],
+    "contract": "Only call a ready LED device and record successful channel changes; later same-target requests retry failed channels, including sleep-off",
+    "physical": "NOT RUN"
+  },
   "debounced_sleep": {
     "fixtures": ["tests/runtime/widget_harness.c", "tests/native/main.c"],
     "controls": ["claim-generation", "sleep-reschedule", "early-claim", "duplicate-claim"],

@@ -291,6 +291,15 @@ parent directly, so additional LED devices on the board remain independent.
 Child indices use the LED API's full uint32 width. Mixed parents or a parent
 without `gpio-leds` compatibility are rejected at compilation.
 
+Output is best effort through the GPIO LED driver. An unready device is not
+called. Each channel's cached color changes only after that channel's API call
+succeeds; a failed channel remains eligible when the same color is requested
+again. Other successful channels retain their state. This also applies to an
+off request during sleep. There is no background driver-recovery polling: a
+later indication or activity request retries the required change. Driver failure
+can therefore leave a physical LED on until a successful off request; the cache
+records confirmed API operations, not a measurement of the LED.
+
 As an example, here is a definition for three LEDs connected to VCC and separate GPIOs for a nRF52840 controller:
 
 ```dts

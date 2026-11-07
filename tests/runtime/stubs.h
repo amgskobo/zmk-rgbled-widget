@@ -38,6 +38,13 @@ struct device {
   const void *config;
 };
 static struct device fake_led_device;
+static bool led_ready = true;
+static int led_error[3];
+static unsigned led_attempts[3];
+static bool device_is_ready(const struct device *dev) {
+  assert(dev == &fake_led_device);
+  return led_ready;
+}
 #define DEVICE_DT_GET(x) (&fake_led_device)
 #define LOG_MODULE_REGISTER(...)
 #define LOG_DBG(...)                                                           \
@@ -103,6 +110,9 @@ static jmp_buf worker_done;
 static void (*sleep_hook)(void);
 static int led_on(const struct device *dev, unsigned index) {
   assert(dev == &fake_led_device && index < 3 && edges < 512);
+  led_attempts[index]++;
+  if (!led_ready || led_error[index])
+    return led_ready ? led_error[index] : -ENODEV;
   gpio_trace[edges].at = now_ms;
   gpio_trace[edges].channel = index;
   gpio_trace[edges++].on = 1;
@@ -111,6 +121,9 @@ static int led_on(const struct device *dev, unsigned index) {
 }
 static int led_off(const struct device *dev, unsigned index) {
   assert(dev == &fake_led_device && index < 3 && edges < 512);
+  led_attempts[index]++;
+  if (!led_ready || led_error[index])
+    return led_ready ? led_error[index] : -ENODEV;
   gpio_trace[edges].at = now_ms;
   gpio_trace[edges].channel = index;
   gpio_trace[edges++].on = 0;

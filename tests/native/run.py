@@ -11,11 +11,17 @@ import re
 import subprocess
 import time
 
+from verifier import validate_run
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--zephyr", type=Path, required=True)
 parser.add_argument("--cmsis", type=Path, required=True)
 parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--jobs", type=int, default=2)
+parser.add_argument(
+    "--profile", choices=("default", "optimized", "asan", "asan-ubsan"),
+    default="default", help="real-kernel compiler/sanitizer configuration",
+)
 parser.add_argument(
     "--wide-indices",
     action="store_true",
@@ -108,6 +114,17 @@ command = [
     "--",
     "-DZEPHYR_MODULES=" + str(args.cmsis),
 ]
+if args.profile != "default":
+    profile = out / "profile.conf"
+    if args.profile == "optimized":
+        profile.write_text("CONFIG_SPEED_OPTIMIZATIONS=y\n")
+    else:
+        profile.write_text(
+            "CONFIG_ASAN=y\nCONFIG_ASAN_RECOVER=n\n"
+            + ("CONFIG_UBSAN=y\n" if args.profile == "asan-ubsan" else "CONFIG_UBSAN=n\n")
+        )
+        command.append("-DEXTRA_CFLAGS=-fno-sanitize-recover=all")
+    command.append("-DEXTRA_CONF_FILE=" + str(profile))
 if args.layer_pulse:
     command.append("-DRGB_WIDGET_LAYER_PULSE_TEST=ON")
 if args.ignore_aml:
@@ -143,12 +160,16 @@ if result.returncode:
     raise SystemExit(result.returncode)
 binary = build / "zephyr/zephyr.exe"
 (out / "binary.sha256").write_text(hashlib.sha256(binary.read_bytes()).hexdigest())
+run_env = dict(os.environ, ASAN_OPTIONS="detect_leaks=0:halt_on_error=1",
+               UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1")
+(out / "run-environment.json").write_text(json.dumps(
+    {key: run_env[key] for key in ("ASAN_OPTIONS", "UBSAN_OPTIONS")}, indent=2))
 failed = []
 reports = []
 for repeat in range(1, 4):
     started = time.time_ns()
     clock = time.monotonic_ns()
-    result = subprocess.run([str(binary)], capture_output=True, timeout=30)
+    result = subprocess.run([str(binary)], capture_output=True, timeout=30, env=run_env)
     (out / f"run-{repeat}.stdout").write_bytes(result.stdout)
     (out / f"run-{repeat}.stderr").write_bytes(result.stderr)
     (out / f"run-{repeat}.exit").write_text(str(result.returncode) + "\n")
@@ -168,13 +189,19 @@ for repeat in range(1, 4):
             b"RGB_CONNECTIVITY_SLEEP_COMPLETE",
             b"RGB_ENDPOINT_COLORS_COMPLETE",
         ]
-    if result.returncode or any(marker not in result.stdout for marker in required):
-        failed.append(dict(repeat=repeat, exit=result.returncode))
+    else:
+        required.append(b"RGB_DEBOUNCED_SLEEP_COMPLETE")
+    try:
+        validate_run(result, required)
+    except ValueError as error:
+        failed.append(dict(repeat=repeat, exit=result.returncode, error=str(error)))
 if failed:
     raise SystemExit(f"native repeats failed: {failed}; raw logs retained")
+guards_checked = []
 for fixture, diagnostic in (
     ()
-    if args.wide_indices or args.layer_pulse or args.status_only or args.hide_usb
+    if (args.profile != "default" or args.wide_indices or args.layer_pulse
+        or args.status_only or args.hide_usb)
     else (
         ("mixed-parent", "RGBLED_WIDGET LED aliases must share one gpio-leds parent"),
         ("wrong-parent", "RGBLED_WIDGET LED aliases must belong to a gpio-leds device"),
@@ -210,6 +237,8 @@ for fixture, diagnostic in (
             f"{fixture}: intended compiler rejection missing; raw log retained"
         )
     print(f"{fixture}: exact compiler rejection PASS")
+    guards_checked.append(fixture)
 print(
-    "RGB real kernel lifecycle PASS 3/3 and alias guards PASS; controlled ZMK inputs, no hardware claim"
+    f"RGB real kernel lifecycle PASS 3/3; exact alias guards checked={len(guards_checked)}; "
+    "controlled ZMK inputs, no hardware claim"
 )

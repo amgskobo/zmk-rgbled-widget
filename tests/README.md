@@ -68,6 +68,18 @@ fails against the previous worker, which replayed each old color payload. Both
 sanitizer and optimized variants retain the earlier exact timed blink trace.
 These controlled queue/LED checks do not establish real scheduling or GPIO timing.
 
+## GPIO driver failure and recovery
+
+Every host feature/role configuration additionally checks an unready device,
+independent channel failures during on and off, retrying the same target after
+recovery, and a failed sleep-off followed by a fresh sleep request. The fixture
+requires no driver calls before readiness and preserves successful channels
+while retrying failed channels. All earlier exact GPIO edge/time assertions
+remain. Full adds `unready-driver` and `failed-channel-cache` compiled controls;
+each must fail its named assertion three times. The original source fails the
+unready-device assertion. These controlled API failures establish bookkeeping
+and retry behavior, not electrical fail-off or real driver recovery.
+
 ## Caller, startup and sleep regressions
 
 The canonical host entry runs all six original groups in seven feature/role configurations;
@@ -142,6 +154,34 @@ and uint8 indices respectively; the before-fix binaries and ordered logs are
 preserved externally to the owner source tree.
 ZMK events, endpoint/battery inputs and behavior registration are controlled.
 It is kernel/driver-API evidence, not physical GPIO, radio or power acceptance.
+
+The native entry accepts `--profile default|optimized|asan|asan-ubsan`. Repeat
+all seven feature/role variants with fresh output directories for each profile.
+`optimized` selects Zephyr speed optimization; sanitizer profiles explicitly set
+`ASAN_RECOVER=n`, add `-fno-sanitize-recover=all`, and run with halt-on-error.
+Inspect the effective config and complete compiler command when classifying the
+result. Parent-DTS compiler controls run in the default base variant only; the
+summary reports the actual number of guards checked. Each profile still builds
+once and requires three completed runs of that exact binary.
+
+`native/verifier.py` requires the selected nonempty completion markers, exit0,
+and no sanitizer diagnostic on either stream. Pulse runs additionally require
+`RGB_DEBOUNCED_SLEEP_COMPLETE`; status runs retain both connectivity/color
+markers. A recoverable finding rejects the clean gate even if execution reaches
+all markers and exits0. `test_native_verifier.py` retains positive/negative
+marker, exit, stream and benign-setting cases, plus actual recovering ASan and
+UBSan processes. Their exit0, diagnostic and completion prerequisites are checked
+outside the verifier. Full runs `native/verifier_negative_control.py`: the
+original exit/marker-only predicate must fail both live tests specifically with
+`ValueError not raised`. Its two expected assertion failures are control
+evidence, separate from product and validator PASS counts.
+The original predicate must also pass the completion and benign-setting positive
+controls; setup failures or changed positive behavior do not qualify.
+
+The supported-core integration entry retains one exact staged owner snapshot,
+compiled-source hashes, generated source bytes and generated headers before
+temporary build cleanup, including on build failure. Config, DTS, command list,
+ELF and UF2 remain part of every variant's evidence.
 
 ## Status sleep and deferred connectivity
 
