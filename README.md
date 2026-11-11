@@ -147,11 +147,13 @@ keeps its separate battery-first sequence. Connectivity work is initialized
 statically and accepts requests before the LED thread starts.
 
 The queue retains sixteen requests. On the current 32-bit ARM build, each copied
-request occupies 20 bytes and the queue payload occupies 320 bytes. Its three
-boolean flags share one byte; duration, sleep, generation and pulse serial keep
-their full 32-bit ranges. Producers and the worker use private copies of each
-request, with no per-request allocation. The boot and processing threads retain
-their separate startup schedules and stacks.
+request occupies 16 bytes and the queue payload occupies 256 bytes when the
+single-pulse layer indicator is disabled. With that mode enabled, its layer
+identity and pulse serial bring each request to 20 bytes and the payload to
+320 bytes. The three boolean flags share one byte; duration, sleep, generation
+and the enabled pulse serial keep their full 32-bit ranges. Producers and the
+worker use private copies of each request, with no per-request allocation. The
+boot and processing threads retain their separate startup schedules and stacks.
 
 Sleep requests output off and invalidates older queued, running and deferred
 indications in every display mode and split role, including status-only and

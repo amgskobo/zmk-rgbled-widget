@@ -82,6 +82,14 @@ and retry behavior, not electrical fail-off or real driver recovery.
 
 ## Caller, startup and sleep regressions
 
+Every host configuration checks a queue-item budget of 16 bytes without
+single-pulse layer output and 20 bytes with it enabled. The queue still retains
+all 16 requests and every existing saturation assertion. The original source
+fails the non-pulse storage assertion because it reserves pulse identity fields
+for disabled consumers; one sanitized original binary is rejected by that named
+runtime assertion three times. Actual linked ARM queue symbols establish the
+production saving separately from this host ABI check.
+
 The canonical host entry runs all six original groups in seven feature/role configurations;
 full repeats them under optimization as well as sanitizers. Original exact blink
 edges, battery retry counts, queue saturation and threshold assertions remain.

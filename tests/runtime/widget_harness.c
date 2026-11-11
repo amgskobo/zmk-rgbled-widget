@@ -783,6 +783,9 @@ static void test_quiet_layer_pulse(void) {
 }
 
 int main(void) {
+  /* Keep all sixteen requests without reserving disabled pulse metadata. */
+  assert(led_msgq.size <= (SHOW_LAYER_SINGLE_PULSE ? 20U : 16U) &&
+         "LED queue retains disabled pulse metadata");
 #if defined(CONFIG_RGBLED_WIDGET_QUIET_PULSE_TEST)
   test_quiet_layer_pulse();
   puts("RGB widget quiet layer pulse: PASS (no boot/status output, one timed "

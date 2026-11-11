@@ -21,6 +21,7 @@
     "python3 tests/native/run.py --zephyr RESOLVED_ZEPHYR --cmsis RESOLVED_CMSIS --output FRESH_USB_HIDDEN_OUTPUT --hide-usb; actual profile colors while USB is selected, same binary three times"
   ],
   "coverage_map": "tests/contract.json",
+  "queue_storage": "Every host variant enforces the 16-byte non-pulse or 20-byte pulse item budget; existing 16-request saturation assertions remain; original non-pulse binary fails the named runtime assertion 3/3. Actual ARM symbols establish production saving.",
   "preserved_assertions": "Relocated fixtures retain their prior assertions; no snapshot auto-accept or unique assertion removal.",
   "execution": {
     "quick": "All behavioral scenarios once; sanitizer variants where supported.",

@@ -93,7 +93,9 @@ static const uint8_t layer_color_idx[] = {
 // a blink work item as specified by the color and duration
 struct blink_item {
   uint8_t color;
+#if SHOW_LAYER_SINGLE_PULSE
   uint8_t layer_index;
+#endif
   /* Producers construct private items and the queue copies them by value.
    * Consumers use a private copy, so these flags are never shared mutations. */
   bool persistent_color : 1;
@@ -102,7 +104,10 @@ struct blink_item {
   uint32_t duration_ms;
   uint32_t sleep_ms;
   uint32_t generation;
+#if SHOW_LAYER_SINGLE_PULSE
+  /* Only pulse consumers compare queued layer identities and serials. */
   uint32_t pulse_serial;
+#endif
 };
 
 // flag to indicate whether the initial boot up sequence is complete

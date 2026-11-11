@@ -2,6 +2,7 @@
   "owner": "zmk-rgbled-widget",
   "entry": "bash tests/run-host-docker.sh",
   "families": {
+    "queue_storage": "runtime/widget_harness.c:main; 16/20-byte non-pulse/pulse item budgets with all 16 request slots retained; original sanitized non-pulse binary fails the named runtime assertion 3/3; linked ARM queue symbols verify production storage separately",
     "gpio_driver_recovery": "runtime/widget_harness.c:test_gpio_driver_recovery; unready device, independent on/off channel failures, same-target retry and sleep-off retry in every feature/role configuration; two compiled controls fail their named assertions3/3",
     "native_clean_admission": "native/verifier.py and test_native_verifier.py; nonempty completion, process exit and diagnostics on both streams; real recovering ASan/UBSan controls require exit0 plus markers and a diagnostic before rejection; original predicate fails both assertions",
     "gpio_and_ordered_blinks": "runtime/widget_harness.c:test_gpio_and_worker; exact edge values/order/timestamps and unchanged separation intervals",

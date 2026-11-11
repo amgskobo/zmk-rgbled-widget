@@ -62,7 +62,7 @@ static const struct behavior_driver_api behavior_rgb_wdg_driver_api = {
 };
 
 #define RGBIND_INST(n)                                                                             \
-    static struct behavior_rgb_wdg_config behavior_rgb_wdg_config_##n = {                          \
+    static const struct behavior_rgb_wdg_config behavior_rgb_wdg_config_##n = {                    \
         .indicate_battery = DT_INST_PROP(n, indicate_battery),                                     \
         .indicate_connectivity = DT_INST_PROP(n, indicate_connectivity),                           \
         .indicate_layer = DT_INST_PROP(n, indicate_layer),                                         \
