@@ -49,14 +49,14 @@ BUILD_ASSERT(!(SHOW_LAYER_CHANGE && SHOW_LAYER_COLORS),
              "are mutually exclusive");
 
 // GPIO-based LED device and indices of red/green/blue LEDs inside its DT node
-static const struct device *led_dev = DEVICE_DT_GET(LED_GPIO_NODE_ID);
+static const struct device *const led_dev = DEVICE_DT_GET(LED_GPIO_NODE_ID);
 static const uint32_t rgb_idx[] = {DT_NODE_CHILD_IDX(DT_ALIAS(led_red)),
                                    DT_NODE_CHILD_IDX(DT_ALIAS(led_green)),
                                    DT_NODE_CHILD_IDX(DT_ALIAS(led_blue))};
 
 // map from color values to names, for logging
-static const char *color_names[] = {"black", "red",     "green", "yellow",
-                                    "blue",  "magenta", "cyan",  "white"};
+static const char *const color_names[] = {"black", "red",     "green", "yellow",
+                                          "blue",  "magenta", "cyan",  "white"};
 
 #if SHOW_LAYER_COLORS || SHOW_LAYER_SINGLE_PULSE
 static const uint8_t layer_color_idx[] = {
@@ -93,12 +93,14 @@ static const uint8_t layer_color_idx[] = {
 // a blink work item as specified by the color and duration
 struct blink_item {
   uint8_t color;
-  bool persistent_color;
-  bool layer_pulse;
   uint8_t layer_index;
+  /* Producers construct private items and the queue copies them by value.
+   * Consumers use a private copy, so these flags are never shared mutations. */
+  bool persistent_color : 1;
+  bool layer_pulse : 1;
+  bool battery_request : 1;
   uint32_t duration_ms;
   uint32_t sleep_ms;
-  bool battery_request;
   uint32_t generation;
   uint32_t pulse_serial;
 };
